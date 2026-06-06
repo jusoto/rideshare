@@ -1,0 +1,2 @@
+2024-05-14 23:05:34 CPU Usage: 17.6% | Memory Usage: 21.81% | I/O Usage (read write): 3.40 8.27 | Docker Stats:  | Load Average:  1.35, 3.30, 3.32 | Process Count: 281 | Network Usage:  | Disk I/O Latency: Read:3.40 Write:8.27 | Network Latency: Min:1.712/1.978/2.315/0.227 Avg:ms Max:
+2024-05-14 23:05:38 CPU Usage: 100% | Memory Usage: 21.84% | I/O Usage (read write): 3.40 8.27 | Docker Stats:  | Load Average:  1.40, 3.28, 3.31 | Process Count: 282 | Network Usage:  | Disk I/O Latency: Read:3.40 Write:8.27 | Network Latency: Min:1.592/1.741/1.880/0.121 Avg:ms Max:

@@ -1,0 +1,199 @@
+version: '2.3'
+
+services:
+  
+  discoveryservice:
+    image: aista/eureka
+    container_name: discoveryservice
+    # mem_limit: 512M
+    ports:
+      - "8761:8761"
+
+  mysqlserver:
+    image: mysql:5.7
+    container_name: mysqlserver
+    # mem_limit: 512M
+    volumes:
+      - mysql-data:/var/lib/mysql:rw
+    restart: always
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_USER:
+      MYSQL_PASSWORD:
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      MYSQL_DATABASE: 'user_service'
+
+  userservice:
+    image: aista/user-service:0.1
+    container_name: userservice
+    # mem_limit: 512M
+    depends_on:
+      - discoveryservice
+      - mysqlserver
+    links:
+      - discoveryservice
+      - mysqlserver
+    ports:
+      - '8091:8080'
+    environment:
+      JAVA_OPTS: -Xms64m -Xmx128m -XX:+UseG1GC
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_APPLICATION_NAME: userservice
+      SPRING_PROFILES_ACTIVE: enableEureka
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discoveryservice:8761/eureka/
+      SPRING_SLEUTH_ENABLED: "true"
+      SPRING_SLEUTH_SAMPLER_PERCENTAGE: 1
+
+  mongo:
+    image: 'mongo:3.4.1'
+    container_name: mongo
+    # mem_limit: 512M
+    ports:
+      - '27017:27017'
+    volumes:
+      - 'mongo:/data/db'
+
+  rabbitmq:
+    image: rabbitmq:3.5.3-management
+    # image: rabbitmq:management
+    container_name: rabbitmq
+    # mem_limit: 512M
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      
+  edgeservice:
+    image: aista/edge-service:0.1
+    container_name: edgeservice
+    # mem_limit: 512M
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discoveryservice
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_APPLICATION_NAME: edgeservice
+      SPRING_PROFILES_ACTIVE: enableEureka
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discoveryservice:8761/eureka/
+      SPRING_SLEUTH_ENABLED: "true"
+      SPRING_SLEUTH_SAMPLER_PERCENTAGE: 1
+
+  gmapsadapter:
+    image: aista/gmaps-adapter:0.1
+    container_name: gmapsadapter
+    # mem_limit: 512M
+    environment:
+      - EUREKA_SERVER=discoveryservice
+      - RABBIT_HOST=rabbitmq
+      - JAVA_OPTS=-Xms64m -Xmx128m -XX:+UseG1GC 
+    ports:
+      - '8099:8080'
+    depends_on:
+      - discoveryservice
+      - rabbitmq
+    links:
+      - discoveryservice
+      - rabbitmq
+
+  calculationservice:
+    image: aista/calculation-service:0.1
+    container_name: calculationservice
+    # mem_limit: 512M
+    environment:
+      - RABBIT_HOST=rabbitmq
+      - EUREKA_SERVER=discoveryservice
+      - MONGO_HOST=mongo
+      - MONGO_PORT=27017
+    ports:
+      - '8097:8080'
+    depends_on:
+      - discoveryservice
+      - rabbitmq
+      - mongo
+    links:
+      - discoveryservice
+      - rabbitmq
+      - mongo
+      
+  notificationservice:
+    image: aista/notification-service
+    container_name: notificationservice
+    depends_on:
+      - discoveryservice
+      - rabbitmq
+    command: ./notification-service
+    ports:
+      - "32700:32700"
+    environment:
+      - EUREKA_SERVER=discoveryservice
+      - RABBIT_HOST=rabbitmq
+
+  tripmanagementcmd:
+    image: aista/trip-management-cmd:0.1
+    container_name: tripmanagementcmd
+    # mem_limit: 512M
+    ports:
+      - '8095:8080'
+    depends_on:
+      - discoveryservice
+      - rabbitmq
+      - mongo
+    links:
+      - discoveryservice
+      - rabbitmq
+      - mongo
+    environment:
+      RABBIT_HOST: rabbitmq
+      MONGO_HOST: mongo
+      JAVA_OPTS: -Xms64m -Xmx128m -XX:+UseG1GC 
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_APPLICATION_NAME: tripmanagementcmd
+      SPRING_PROFILES_ACTIVE: enableEureka
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discoveryservice:8761/eureka/
+      SPRING_SLEUTH_ENABLED: "true"
+      SPRING_SLEUTH_SAMPLER_PERCENTAGE: 1
+
+  tripmanagementquery:
+    image: aista/trip-management-query:0.1
+    container_name: tripmanagementquery
+    # mem_limit: 512M
+    ports:
+      - '8096:8080'
+    depends_on:
+      - rabbitmq
+      - mongo
+      - discoveryservice
+    links:
+      - rabbitmq
+      - mongo
+      - discoveryservice
+    environment:
+      RABBIT_HOST: rabbitmq
+      MONGO_HOST: mongo
+      JAVA_OPTS: -Xms64m -Xmx128m -XX:+UseG1GC 
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_APPLICATION_NAME: tripmanagementquery
+      SPRING_PROFILES_ACTIVE: enableEureka
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discoveryservice:8761/eureka/
+      SPRING_SLEUTH_ENABLED: "true"
+      SPRING_SLEUTH_SAMPLER_PERCENTAGE: 1
+
+  # zipkin:
+  #   build: ./zipkin-server
+  #   container_name: zipkin
+  #   ports:
+  #     - "9411:9411"
+  #   depends_on:
+  #     - rabbitmq
+  #   environment:
+  #     RABBIT_HOST: rabbitmq
+
+volumes:
+  mongo:
+  mysql-data:
